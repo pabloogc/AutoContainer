@@ -11,19 +11,19 @@ import javax.lang.model.util.ElementFilter
 
 object AutoActivityProcessor : AbstractProcessor() {
 
-    lateinit var env: ProcessingEnvironment
+  lateinit var env: ProcessingEnvironment
 
-    override fun init(env: ProcessingEnvironment) {
-        this.env = env
-    }
+  override fun init(env: ProcessingEnvironment) {
+    this.env = env
+  }
 
-    override fun process(annotations: MutableSet<out TypeElement>, roundEnv: RoundEnvironment): Boolean {
-        roundEnv.getElementsAnnotatedWith(AutoActivity::class.java)
-                .let { ElementFilter.typesIn(it) } //Poor man's filter
-                .filter { it.kind == ElementKind.INTERFACE } //Only interfaces
-                .map { ComponentModel(it) }
-                .forEach { it.generateClass() }
-        return true
-    }
+  override fun process(annotations: MutableSet<out TypeElement>, roundEnv: RoundEnvironment): Boolean {
+    roundEnv.getElementsAnnotatedWith(AutoActivity::class.java)
+        .let { ElementFilter.typesIn(it) } //Poor man's filter
+        .filter { it.kind == ElementKind.INTERFACE } //Only interfaces
+        .map { ComponentModel(it) }
+        .forEach { it.generateClass() }
+    return true
+  }
 
 }

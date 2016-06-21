@@ -2,6 +2,7 @@ package com.bq.autoactivity;
 
 import android.app.Activity;
 
+import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -20,4 +21,6 @@ public @interface AutoActivity {
     Class<?>[] dependencies() default {};
 
     Class<? extends Activity> baseActivity() default Activity.class;
+
+    Class<? extends Annotation> scope();
 }

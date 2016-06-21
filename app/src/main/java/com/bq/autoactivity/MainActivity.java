@@ -13,13 +13,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        final PluginController pluginController = new PluginController();
-        pluginController.install(this);
-
-        final DummyViewerComponent component = DaggerDummyViewerComponent.builder()
-                .dummyViewerModule(new DummyViewerModule())
-                .build();
     }
 
     @Override
@@ -43,4 +36,5 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
     }
+
 }

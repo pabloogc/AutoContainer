@@ -13,7 +13,9 @@ public class BobPlugin {
 //    }
 
     @Callback
-    protected void onBackPressed(ActivityMethod<Void> unused) {
+    protected void onBackPressed(ActivityMethod<Void> m) {
+
+        m.callActivityMethod();
     }
 
 //    @Callback

@@ -63,9 +63,23 @@ class ActivityModel(
           .build())
     }
 
+    val callbackRawClassName = ClassName.get(elementForName(ACTIVITY_METHOD_CLASS_NAME).asType().asElement().asTypeElement())
+
     callbackMap.forEach { methodToOverride, pluginsToInvoke ->
+      val returnTypeName = TypeName.get(methodToOverride.returnType)
+      val callbackTypeName = ParameterizedTypeName.get(callbackRawClassName, returnTypeName.box())
+      val body =
+
+      componentTypeSpec.addField(FieldSpec.builder(callbackTypeName, methodToOverride.simpleName.toString())
+          .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+          .initializer("new \$T() { public \$T callActivityMethod() { \$L; return null; } }",
+              callbackTypeName,
+              returnTypeName.box(),
+              methodToOverride.toInvocationString())
+          .build())
       val m = MethodSpec.overriding(methodToOverride)
       pluginsToInvoke.forEach {
+        m.addStatement("//\$L", callbackTypeName)
         m.addStatement("this.\$L.\$L", it.fieldName, m.build().toInvocationString())
       }
       componentTypeSpec.addMethod(m.build())

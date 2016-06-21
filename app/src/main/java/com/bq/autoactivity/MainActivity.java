@@ -9,6 +9,12 @@ import javax.inject.Inject;
 
 public class MainActivity extends AppCompatActivity {
 
+    private ActivityMethod<String> m = new ActivityMethod<String>() {
+        @Override public String callActivityMethod() {
+            return null;
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

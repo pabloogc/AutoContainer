@@ -12,6 +12,8 @@ import javax.lang.model.element.TypeElement
 import javax.lang.model.type.*
 import javax.lang.model.util.TypeKindVisitor6
 
+const val ACTIVITY_METHOD_CLASS_NAME = "com.bq.autoactivity.ActivityMethod"
+
 class PluginModel(val method: ExecutableElement) {
   val className: ClassName
   val type: TypeMirror
@@ -46,7 +48,7 @@ class PluginModel(val method: ExecutableElement) {
       canOverrideActivityMethod = method.parameters.firstOrNull()
           ?.asType()?.asTypeElement()
           ?.qualifiedName?.toString()
-          ?.equals("com.bq.autoactivity.ActivityMethod")
+          ?.equals(ACTIVITY_METHOD_CLASS_NAME)
           ?: false
 
       if (canOverrideActivityMethod) {

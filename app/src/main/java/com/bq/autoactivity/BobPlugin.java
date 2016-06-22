@@ -7,6 +7,7 @@ import javax.inject.Singleton;
 
 @Plugin
 public class BobPlugin {
+
 //
 //    @Callback
 //    protected void onResume() {
@@ -14,12 +15,11 @@ public class BobPlugin {
 
     @Callback
     protected void onBackPressed(ActivityMethod<Void> m) {
-
         m.callActivityMethod();
     }
 
-//    @Callback
-//    public void onKeyDown(int keyCode, KeyEvent event) {
-//
-//    }
+    @Callback
+    public void onKeyDown(int keyCode, KeyEvent event) {
+
+    }
 }

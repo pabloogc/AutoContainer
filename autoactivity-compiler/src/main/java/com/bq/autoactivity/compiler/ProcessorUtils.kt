@@ -19,59 +19,75 @@ import kotlin.reflect.KProperty1
 //###################
 
 fun elementForName(name: String): TypeElement = env.elementUtils.getTypeElement(name)
+
 fun <T : Any> KClass<T>.asElement(): Element = env.elementUtils.getTypeElement(this.java.toString())
-fun TypeMirror.asElement(): Element = env.typeUtils.asElement(this)
 fun <T : Any> KClass<T>.asTypeMirror(): TypeMirror = this.asElement().asType()
 
+fun TypeMirror.asElement(): Element = asElementOrNull()!!
+fun TypeMirror.asElementOrNull(): Element? = env.typeUtils.asElement(this)
+
+
 fun Element.asTypeElement(): TypeElement = asTypeElementOrNull()!!
-fun TypeMirror.asTypeElement(): TypeElement = asElement().asTypeElement()
 fun Element.asTypeElementOrNull(): TypeElement? = if (this is TypeElement) this else null
+
+fun TypeMirror.asTypeElement(): TypeElement = asTypeElementOrNull()!!
+fun TypeMirror.asTypeElementOrNull(): TypeElement? = asElementOrNull()?.asTypeElementOrNull()
+
 
 fun VariableElement.asTypeElement(): TypeElement = asTypeElementOrNull()!!
 fun VariableElement.asTypeElementOrNull(): TypeElement? {
-  val visitor = object : ElementKindVisitor6<TypeElement, Void>() {
-    override fun visitType(e: TypeElement, p: Void): TypeElement? {
-      logError(e.toString())
-      return e;
-    }
+   val visitor = object : ElementKindVisitor6<TypeElement, Void>() {
+      override fun visitType(e: TypeElement, p: Void): TypeElement? {
+         logError(e.toString())
+         return e;
+      }
 
-    override fun visitTypeAsClass(e: TypeElement?, p: Void?): TypeElement? {
-      return e;
-    }
-  }
-  return this.accept(visitor, null)
+      override fun visitTypeAsClass(e: TypeElement?, p: Void?): TypeElement? {
+         return e;
+      }
+   }
+   return this.accept(visitor, null)
 }
 
 //###################
 // Type Utilities
 //###################
 
+fun Element.findMethodByName(name: String): ExecutableElement = findMethodByNameOrNull(name)!!
+fun Element.findMethodByNameOrNull(name: String): ExecutableElement? = findMethodOrNull { it.simpleName.toString() == name }
+fun Element.findMethod(p: (ExecutableElement) -> Boolean): ExecutableElement = findMethodOrNull(p)!!
+fun Element.findMethodOrNull(p: (ExecutableElement) -> Boolean): ExecutableElement? {
+   return this.enclosedElements.filter { it.kind == ElementKind.METHOD }
+         .map { it as ExecutableElement }
+         .firstOrNull(p)
+}
+
 fun TypeMirror.implements(base: KClass<*>): Boolean {
-  return this.implements(base.asTypeMirror())
+   return this.implements(base.asTypeMirror())
 }
 
 fun TypeMirror.implements(base: TypeMirror): Boolean {
-  return env.typeUtils.isAssignable(this, base)
+   return env.typeUtils.isAssignable(this, base)
 }
 
 fun ExecutableElement.sameMethodSignature(other: ExecutableElement): Boolean {
-  val m1 = this.asType() as ExecutableType
-  val m2 = other.asType() as ExecutableType
-  return this.simpleName == other.simpleName
-      && env.typeUtils.isSubsignature(m1, m2)
-      && env.typeUtils.isSubsignature(m2, m1)
+   val m1 = this.asType() as ExecutableType
+   val m2 = other.asType() as ExecutableType
+   return this.simpleName == other.simpleName
+         && env.typeUtils.isSubsignature(m1, m2)
+         && env.typeUtils.isSubsignature(m2, m1)
 }
 
 fun TypeElement.enclosedAndInheritedElements(): List<Element> {
-  val out = ArrayList<Element>()
-  var current: TypeElement? = this
+   val out = ArrayList<Element>()
+   var current: TypeElement? = this
 
-  while (current != null && current.asType().kind != TypeKind.NONE) {
-    out.addAll(current.enclosedElements)
-    val elem = env.typeUtils.asElement(current.superclass) ?: break
-    current = elem as TypeElement
-  }
-  return out.distinct()
+   while (current != null && current.asType().kind != TypeKind.NONE) {
+      out.addAll(current.enclosedElements)
+      val elem = env.typeUtils.asElement(current.superclass) ?: break
+      current = elem as TypeElement
+   }
+   return out.distinct()
 }
 
 //###################
@@ -79,23 +95,23 @@ fun TypeElement.enclosedAndInheritedElements(): List<Element> {
 //###################
 
 fun <T> T.typeMirrors(property: KProperty1<T, Array<KClass<*>>>): List<TypeMirror> {
-  try {
-    property.get(this)
-  } catch(ex: MirroredTypesException) {
-    return ex.typeMirrors
-  } catch (ex: MirroredTypeException) {
-    return listOf(ex.typeMirror)
-  }
-  throw IllegalArgumentException("Property is not a Class<?>[]")
+   try {
+      property.get(this)
+   } catch(ex: MirroredTypesException) {
+      return ex.typeMirrors
+   } catch (ex: MirroredTypeException) {
+      return listOf(ex.typeMirror)
+   }
+   throw IllegalArgumentException("Property is not a Class<?>[]")
 }
 
 fun <T> T.typeMirror(property: KProperty1<T, KClass<*>>): TypeMirror {
-  try {
-    property.get(this)
-  } catch(ex: MirroredTypeException) {
-    return ex.typeMirror
-  }
-  throw IllegalArgumentException("Property is not a Class<?>")
+   try {
+      property.get(this)
+   } catch(ex: MirroredTypeException) {
+      return ex.typeMirror
+   }
+   throw IllegalArgumentException("Property is not a Class<?>")
 }
 
 fun <T : Annotation> Element.hasAnnotation(type: Class<T>): Boolean = this.getAnnotation(type) != null
@@ -107,16 +123,16 @@ fun TypeMirror.isSameType(other: TypeMirror) = env.typeUtils.isSameType(this, ot
 //###################
 
 fun logError(message: String, element: Element? = null) {
-  logMessage(Diagnostic.Kind.ERROR, message, element)
+   logMessage(Diagnostic.Kind.ERROR, message, element)
 }
 
 fun logWarning(message: String, element: Element? = null) {
-  logMessage(Diagnostic.Kind.MANDATORY_WARNING, message, element)
+   logMessage(Diagnostic.Kind.MANDATORY_WARNING, message, element)
 }
 
 
 fun logMessage(kind: Diagnostic.Kind, message: String, element: Element? = null) {
-  env.messager.printMessage(kind, message, element)
+   env.messager.printMessage(kind, message, element)
 }
 
 //###################
@@ -124,20 +140,20 @@ fun logMessage(kind: Diagnostic.Kind, message: String, element: Element? = null)
 //###################
 
 fun Element.copyAnnotations(): Array<AnnotationSpec> {
-  return annotationMirrors.map {
-    AnnotationSpec.get(it)
-  }.toTypedArray()
+   return annotationMirrors.map {
+      AnnotationSpec.get(it)
+   }.toTypedArray()
 }
 
 /**
  * Transform a method foo(Bar bar, Bar2 bar2) into foo(bar, bar2)
  */
 fun ExecutableElement.toInvocationString(): String {
-  return MethodSpec.overriding(this).build().toInvocationString()
+   return MethodSpec.overriding(this).build().toInvocationString()
 }
 
 fun MethodSpec.toInvocationString(): String {
-  return "${this.name}(${this.parameters.map { it.name }.joinToString(", ")})"
+   return "${this.name}(${this.parameters.map { it.name }.joinToString(", ")})"
 }
 
 fun TypeMirror.toTypeName(): TypeName = ClassName.get(this)

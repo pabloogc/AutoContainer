@@ -9,6 +9,7 @@ import java.util.*
 import javax.lang.model.element.*
 import javax.lang.model.type.*
 import javax.lang.model.util.ElementKindVisitor6
+import javax.lang.model.util.SimpleAnnotationValueVisitor6
 import javax.lang.model.util.SimpleElementVisitor6
 import javax.tools.Diagnostic
 import kotlin.reflect.KClass
@@ -62,6 +63,8 @@ fun Element.findMethodOrNull(p: (ExecutableElement) -> Boolean): ExecutableEleme
          .firstOrNull(p)
 }
 
+fun ExecutableElement.isVoid(): Boolean = this.returnType.kind == TypeKind.VOID
+
 fun TypeMirror.implements(base: KClass<*>): Boolean {
    return this.implements(base.asTypeMirror())
 }
@@ -113,6 +116,21 @@ fun <T> T.typeMirror(property: KProperty1<T, KClass<*>>): TypeMirror {
    }
    throw IllegalArgumentException("Property is not a Class<?>")
 }
+
+fun <T : Enum<*>> mapEnumValue(element: Element, property: String, enumClass: Class<T>): T {
+   var t: T? = null
+   env.elementUtils.getAllAnnotationMirrors(element).forEach outer@ {
+      it.elementValues.entries.forEach { entry ->
+         if (entry.key.simpleName.toString() == property) {
+            val enumValue = entry.value.toString().substringAfterLast(".")
+            t = enumClass.enumConstants.firstOrNull() { it.name == enumValue }
+            return@outer
+         }
+      }
+   }
+   return t ?: error("Enum value not found for $property")
+}
+
 
 fun <T : Annotation> Element.hasAnnotation(type: Class<T>): Boolean = this.getAnnotation(type) != null
 

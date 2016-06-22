@@ -1,7 +1,7 @@
 package com.bq.autoactivity.compiler
 
 import com.bq.autoactivity.AutoActivity
-import com.bq.autoactivity.compiler.models.ComponentModel
+import com.bq.autoactivity.compiler.ComponentModel
 import java.io.PrintWriter
 import java.io.StringWriter
 import javax.annotation.processing.AbstractProcessor
@@ -29,8 +29,10 @@ object AutoActivityProcessor : AbstractProcessor() {
       } catch(ex: Exception) {
          val sw = StringWriter()
          ex.printStackTrace(PrintWriter(sw))
-         logError(sw.toString())
-         throw ex
+         logError(sw.toString()
+               .lines()
+               .takeWhile { !it.contains("JavacProcessingEnvironment.callProcessor") }
+               .joinToString("\n"))
       }
       return true
    }

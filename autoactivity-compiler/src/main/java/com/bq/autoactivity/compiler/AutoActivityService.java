@@ -1,6 +1,8 @@
 package com.bq.autoactivity.compiler;
 
 import com.bq.autoactivity.AutoActivity;
+import com.bq.autoactivity.ActivityCallback;
+import com.bq.autoactivity.Plugin;
 import com.google.auto.service.AutoService;
 
 import java.util.LinkedHashSet;
@@ -28,6 +30,8 @@ public class AutoActivityService extends AbstractProcessor {
     public Set<String> getSupportedAnnotationTypes() {
         final LinkedHashSet<String> set = new LinkedHashSet<>();
         set.add(AutoActivity.class.getCanonicalName());
+        set.add(ActivityCallback.class.getCanonicalName());
+        set.add(Plugin.class.getCanonicalName());
         return set;
     }
 

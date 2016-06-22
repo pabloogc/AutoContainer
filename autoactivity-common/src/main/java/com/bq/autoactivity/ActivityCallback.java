@@ -7,8 +7,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 
-@Target({ElementType.METHOD, ElementType.FIELD})
+@Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface Callback {
+public @interface ActivityCallback {
+    CallSuper callSuper() default CallSuper.UNSPECIFIED;
+
+    enum CallSuper {
+        BEFORE, AFTER, UNSPECIFIED
+    }
 }

@@ -1,18 +1,18 @@
-package com.bq.autoactivity.compiler.models
+package com.bq.autoactivity.compiler
 
-import com.bq.autoactivity.Callback
+import com.bq.autoactivity.ActivityCallback
 import com.bq.autoactivity.compiler.*
+import com.squareup.javapoet.AnnotationSpec
 import com.squareup.javapoet.ClassName
-import com.squareup.javapoet.FieldSpec
-import com.squareup.javapoet.TypeSpec
-import javax.lang.model.element.Element
-import javax.lang.model.element.ElementKind
-import javax.lang.model.element.ExecutableElement
-import javax.lang.model.element.TypeElement
-import javax.lang.model.type.*
+import javax.lang.model.element.*
+import javax.lang.model.type.DeclaredType
+import javax.lang.model.type.TypeKind
+import javax.lang.model.type.TypeMirror
+import javax.lang.model.util.SimpleAnnotationValueVisitor6
 import javax.lang.model.util.TypeKindVisitor6
 
 const val ACTIVITY_METHOD_CLASS_NAME = "com.bq.autoactivity.ActivityMethod"
+const val ENUM_CALL_SUPER_CLASS_NAME = "com.bq.autoactivity.ActivityCallback.CallSuper"
 
 class PluginModel(
       val declaringMethod: ExecutableElement,
@@ -29,17 +29,19 @@ class PluginModel(
 
       callbackMethods = element.enclosedAndInheritedElements()
             .filter { it.kind == ElementKind.METHOD }
-            .filter { it.hasAnnotation(Callback::class.java) }
+            .filter { it.hasAnnotation(ActivityCallback::class.java) }
             .map { CallbackMethod(it as ExecutableElement) }
    }
 
-   override fun toString(): String {
-      return "${className.toString()}"
+
+   enum class CallSuperType {
+      BEFORE, AFTER, UNSPECIFIED
    }
 
    inner class CallbackMethod(val callbackMethod: ExecutableElement) {
 
       val canOverrideActivityMethod: Boolean
+      val callSuper: CallSuperType
       val returnType: TypeMirror?
       val plugin = this@PluginModel
 
@@ -49,6 +51,26 @@ class PluginModel(
                ?.qualifiedName?.toString()
                ?.equals(ACTIVITY_METHOD_CLASS_NAME)
                ?: false
+
+
+         //If not specified call and the method won't override the activity method (lifecycle methods)
+         //call it after super, otherwise the callback goes first
+         val declaredCallSuperStrategy = let {
+            AutoActivityProcessor.env.elementUtils.getAllAnnotationMirrors(callbackMethod).forEach loop@{
+               it.elementValues.entries.forEach { entry ->
+                  if (entry.key.simpleName.toString() == "callSuper") {
+                     val enumValue = entry.value.toString().substringAfterLast(".")
+                     return@let CallSuperType::class.java.enumConstants.first() { it.name == enumValue }
+                  }
+               }
+            }
+            CallSuperType.UNSPECIFIED
+         }
+
+         val callSuperUnspecified = declaredCallSuperStrategy == CallSuperType.UNSPECIFIED
+         callSuper = if (callSuperUnspecified)
+            if (canOverrideActivityMethod) CallSuperType.AFTER else CallSuperType.BEFORE
+         else declaredCallSuperStrategy
 
          if (canOverrideActivityMethod) {
             returnType = callbackMethod.parameters.first().asType().accept(object : TypeKindVisitor6<TypeMirror, Void>() {
@@ -86,5 +108,13 @@ class PluginModel(
          }
       }
 
+      override fun toString(): String {
+         return "CallbackMethod(callbackMethod=$callbackMethod, canOverrideActivityMethod=$canOverrideActivityMethod, callSuper=$callSuper, returnType=$returnType)"
+      }
+   }
+
+   override fun toString(): String {
+      return "PluginModel(fieldName='$fieldName', className=$className, callbackMethods=${callbackMethods.toString().replace(",", "\n")})"
    }
 }
+

@@ -1,8 +1,8 @@
 package com.bq.autoactivity;
 
-public abstract class ActivityMethod<T> {
+public abstract class ActivityMethod<ReturnType> {
 
-    private T overriddenReturnValue;
+    private ReturnType overriddenReturnValue;
     private boolean overridden = false;
     private Object consumedBy;
     private Object borrowedBy;
@@ -21,7 +21,7 @@ public abstract class ActivityMethod<T> {
         this.override(null);
     }
 
-    public void override(T overriddenReturnValue) {
+    public void override(ReturnType overriddenReturnValue) {
         if (overridden()) {
             throw new IllegalStateException(
                     "This event was already overridden by: " + (consumedBy != null ? consumedBy.toString() : "UNKNOWN"));
@@ -32,12 +32,12 @@ public abstract class ActivityMethod<T> {
     }
 
     public void captureArguments(Object... args) {
-
+        //No-op
     }
 
 
     public void releaseArguments() {
-
+        //No-op
     }
 
 
@@ -45,9 +45,9 @@ public abstract class ActivityMethod<T> {
         return overridden;
     }
 
-    public T getOverriddenValue() {
+    public ReturnType getOverriddenValue() {
         return overriddenReturnValue;
     }
 
-    public abstract T callActivityMethod();
+    public abstract ReturnType callActivityMethod();
 }

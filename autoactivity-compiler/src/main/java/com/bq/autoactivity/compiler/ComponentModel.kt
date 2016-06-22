@@ -1,4 +1,4 @@
-package com.bq.autoactivity.compiler.models
+package com.bq.autoactivity.compiler
 
 import com.bq.autoactivity.AutoActivity
 import com.bq.autoactivity.Plugin

@@ -2,6 +2,7 @@ package com.bq.autoactivity;
 
 
 import android.view.KeyEvent;
+import android.view.Menu;
 
 import com.bq.autoactivity.ActivityCallback.CallSuper;
 
@@ -12,12 +13,17 @@ public class BobPlugin {
 
 
     @ActivityCallback
-    protected void onResume() {
+    public void onResume() {
     }
 
     @ActivityCallback
-    protected void onBackPressed(ActivityMethod<Void> m) {
+    public void onBackPressed(ActivityMethod<Void> m) {
         m.callActivityMethod();
+    }
+
+    @ActivityCallback
+    public void onCreateOptionsMenu(ActivityMethod<Boolean> m, Menu menu) {
+
     }
 
     @ActivityCallback(callSuper = AFTER)

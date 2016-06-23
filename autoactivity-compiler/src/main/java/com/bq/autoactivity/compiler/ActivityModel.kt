@@ -68,6 +68,10 @@ class ActivityModel(
       //Add a ActivityMethod for every callback
       callbackMap.forEach { methodToOverride, pluginCallbacksToInvoke ->
          val callbackClassRequired = pluginCallbacksToInvoke.any { it.canOverrideActivityMethod }
+         val callbacksBeforeSuper = pluginCallbacksToInvoke
+               .filter { it.callSuper == PluginModel.CallSuperType.AFTER }
+         val callbacksAfterSuper = pluginCallbacksToInvoke
+               .filter { it.callSuper == PluginModel.CallSuperType.BEFORE }
 
          val callbackMethodField =
                if (callbackClassRequired) componentTypeSpec.let {
@@ -82,7 +86,10 @@ class ActivityModel(
 
                   fun addCallbackCall(m: PluginModel.CallbackMethod) {
                      if (m.canOverrideActivityMethod) {
-                        addStatement("this.\$L.\$L(\$L)", m.plugin.fieldName,
+                        addCode("\$L.borrow(\$N); this.\$L.\$L(\$L);\n",
+                              methodToOverride.simpleName,
+                              m.plugin.fieldName,
+                              m.plugin.fieldName,
                               methodToOverride.simpleName,
                               (listOf(callbackMethodField!!.name)
                                     .plus(methodToOverride.parameters.map { it.simpleName }))
@@ -98,26 +105,26 @@ class ActivityModel(
                   }
 
                   //Add all method that go before super
-                  pluginCallbacksToInvoke
-                        .filter { it.callSuper == PluginModel.CallSuperType.AFTER }
-                        .forEach { addCallbackCall(it) }
+                  callbacksBeforeSuper.forEach { addCallbackCall(it) }
 
                   addCode("//Super method invocation\n")
+
+                  //Add aux return value if needed
                   if (!methodToOverride.isVoid()) {
-                     addStatement("\$T returnedValue", TypeName.get(methodToOverride.returnType))
+                     addStatement("final \$T returnedValue", TypeName.get(methodToOverride.returnType))
                   }
+
                   if (callbackClassRequired) {
+
                      if (methodToOverride.isVoid()) {
                         addStatement("if(!this.\$N.overridden()) super.\$L", callbackMethodField, methodToOverride.toInvocationString())
                      } else {
-                        beginControlFlow("if(this.\$N.overridden())", callbackMethodField)
-                        addStatement("returnedValue = \$N.getOverriddenValue()", callbackMethodField)
-                        endControlFlow()
-                        beginControlFlow("else")
-                        addStatement("returnedValue = super.\$L", methodToOverride.toInvocationString())
-                        endControlFlow()
+                        addStatement("if(this.\$N.overridden()) returnedValue = \$N.getOverriddenValue()", callbackMethodField, callbackMethodField)
+                        addStatement("else returnedValue = super.\$L", methodToOverride.toInvocationString())
                      }
-                  } else {
+
+                  } else { //No callback class
+
                      if (methodToOverride.isVoid()) {
                         addStatement("super.\$L", methodToOverride.toInvocationString())
                      } else {
@@ -127,14 +134,10 @@ class ActivityModel(
                   addCode("//End super method invocation\n")
 
                   //Add all method that go after super
-                  pluginCallbacksToInvoke
-                        .filter { it.callSuper == PluginModel.CallSuperType.BEFORE }
-                        .forEach { addCallbackCall(it) }
+                  callbacksAfterSuper.forEach { addCallbackCall(it) }
 
                   //Exit
                   if (callbackClassRequired) {
-                     if (methodToOverride.parameters.isNotEmpty())
-                        addStatement("this.\$N.releaseArguments()", callbackMethodField)
                      addStatement("this.\$N.reset()", callbackMethodField)
                   }
                   if (!methodToOverride.isVoid()) {

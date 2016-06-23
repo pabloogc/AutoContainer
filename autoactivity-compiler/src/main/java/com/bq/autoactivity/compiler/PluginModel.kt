@@ -4,6 +4,7 @@ import com.bq.autoactivity.ActivityCallback
 import com.bq.autoactivity.compiler.*
 import com.squareup.javapoet.AnnotationSpec
 import com.squareup.javapoet.ClassName
+import com.squareup.javapoet.TypeName
 import javax.lang.model.element.*
 import javax.lang.model.type.DeclaredType
 import javax.lang.model.type.TypeKind
@@ -42,7 +43,7 @@ class PluginModel(
 
       val canOverrideActivityMethod: Boolean
       val callSuper: CallSuperType
-      val returnType: TypeMirror?
+      val overrideReturnType: TypeMirror?
       val plugin = this@PluginModel
 
       init {
@@ -73,43 +74,42 @@ class PluginModel(
          else declaredCallSuperStrategy
 
          if (canOverrideActivityMethod) {
-            returnType = callbackMethod.parameters.first().asType().accept(object : TypeKindVisitor6<TypeMirror, Void>() {
+            overrideReturnType = callbackMethod.parameters.first().asType().accept(object : TypeKindVisitor6<TypeMirror, Void>() {
                override fun visitDeclared(t: DeclaredType, p: Void?): TypeMirror? {
                   return t.typeArguments[0]
                }
             }, null)
          } else {
-            returnType = null
+            overrideReturnType = null
          }
       }
 
       fun matchesActivityMethod(activityMethod: ExecutableElement): Boolean {
-         if (canOverrideActivityMethod) {
-            //Same name
-            val nameMatch = callbackMethod.simpleName == activityMethod.simpleName
 
-            //Same return type or void
-            val returnTypeMatch = returnType!!.isSameType(activityMethod.returnType)
-                  || activityMethod.returnType.kind == TypeKind.VOID
-                  && returnType.isSameType(elementForName("java.lang.Void").asType())
+         val parametersToMatch = callbackMethod.parameters
+               .drop(if (canOverrideActivityMethod) 1 else 0) //Drop first if overriding
 
-            //Same parameter types
-            val typesMatch = callbackMethod.parameters.drop(1).zip(activityMethod.parameters)
-                  .map { it.first.asType().to(it.second.asType()) }
-                  .all { it.first.isSameType(it.second) }
+         val nameMatch = callbackMethod.simpleName == activityMethod.simpleName
 
-            //Same number of parameters
-            val sizesMatch = callbackMethod.parameters.size - 1 == activityMethod.parameters.size
-            return nameMatch && returnTypeMatch && typesMatch && sizesMatch
+         val parametersTypesMatch = parametersToMatch
+               .zip(activityMethod.parameters)
+               .map { it.first.asType().to(it.second.asType()) }
+               .all { it.first.isSameType(it.second) }
+
+         val parametersSizeMatch = parametersToMatch.size == activityMethod.parameters.size
+
+         val returnTypeMatch = if (canOverrideActivityMethod) {
+            overrideReturnType!!.implements(activityMethod.returnType)
+                  || activityMethod.returnType.kind == TypeKind.VOID && overrideReturnType.implements(elementForName("java.lang.Void").asType())
          } else {
-
-            //Simply check both methods have the same signature
-            return callbackMethod.sameMethodSignature(activityMethod)
+            callbackMethod.returnType.kind == TypeKind.VOID
          }
+
+         return nameMatch && returnTypeMatch && parametersTypesMatch && parametersSizeMatch
       }
 
       override fun toString(): String {
-         return "CallbackMethod(callbackMethod=$callbackMethod, canOverrideActivityMethod=$canOverrideActivityMethod, callSuper=$callSuper, returnType=$returnType)"
+         return "CallbackMethod(callbackMethod=$callbackMethod, canOverrideActivityMethod=$canOverrideActivityMethod, callSuper=$callSuper, returnType=$overrideReturnType)"
       }
    }
 

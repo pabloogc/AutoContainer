@@ -2,7 +2,7 @@ package com.bq.autoactivity;
 
 public abstract class ActivityMethod<ReturnType> {
 
-    private ReturnType overriddenReturnValue;
+    private ReturnType returnValue;
     private boolean overridden = false;
     private Object consumedBy;
     private Object borrowedBy;
@@ -15,20 +15,21 @@ public abstract class ActivityMethod<ReturnType> {
         this.consumedBy = null;
         this.borrowedBy = null;
         this.overridden = false;
+        releaseArguments();
     }
 
     public void override() {
         this.override(null);
     }
 
-    public void override(ReturnType overriddenReturnValue) {
+    public void override(ReturnType returnValue) {
         if (overridden()) {
             throw new IllegalStateException(
                     "This event was already overridden by: " + (consumedBy != null ? consumedBy.toString() : "UNKNOWN"));
         }
-        this.overriddenReturnValue = overriddenReturnValue;
-        consumedBy = borrowedBy;
-        overridden = true;
+        this.returnValue = returnValue;
+        this.consumedBy = borrowedBy;
+        this.overridden = true;
     }
 
     public void captureArguments(Object... args) {
@@ -46,7 +47,7 @@ public abstract class ActivityMethod<ReturnType> {
     }
 
     public ReturnType getOverriddenValue() {
-        return overriddenReturnValue;
+        return returnValue;
     }
 
     public abstract ReturnType callActivityMethod();

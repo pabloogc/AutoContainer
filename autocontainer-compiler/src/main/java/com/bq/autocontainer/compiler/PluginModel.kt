@@ -2,10 +2,12 @@ package com.bq.autocontainer.compiler
 
 
 import com.bq.autocontainer.Callback
+import com.bq.autocontainer.Plugin
 import com.bq.autocontainer.compiler.ProcessorUtils.env
 import com.squareup.javapoet.ClassName
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
+import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
 import javax.lang.model.type.DeclaredType
 import javax.lang.model.type.TypeKind
@@ -27,12 +29,22 @@ class PluginModel(
       className = ClassName.get(element)
       //Since methods must have unique names in the interfaces this is safe
 
+      if (element.modifiers.contains(Modifier.ABSTRACT)) {
+         logError("Plugin can't be abstract", element)
+      }
+
+      if (element.enclosedElements
+            .filter { it.kind == ElementKind.CONSTRUCTOR }
+            .map { it as ExecutableElement }
+            .firstOrNull { it.modifiers.contains(Modifier.PUBLIC) && it.parameters.isEmpty() } == null) {
+         logError("Plugin must have visible empty constructor.")
+      }
+
       callbackMethods = element.enclosedAndInheritedElements()
             .filter { it.kind == ElementKind.METHOD }
             .filter { it.hasAnnotation(Callback::class.java) }
             .map { CallbackMethod(it as ExecutableElement) }
    }
-
 
    enum class CallSuperType {
       BEFORE, AFTER, UNSPECIFIED
@@ -68,9 +80,15 @@ class PluginModel(
          }
 
          val callSuperUnspecified = declaredCallSuperStrategy == CallSuperType.UNSPECIFIED
-         callSuper = if (callSuperUnspecified)
-            if (canOverrideActivityMethod) CallSuperType.AFTER else CallSuperType.BEFORE
-         else declaredCallSuperStrategy
+         callSuper = if (callSuperUnspecified) {
+            if (canOverrideActivityMethod) {
+               CallSuperType.AFTER
+            } else {
+               CallSuperType.BEFORE
+            }
+         } else {
+            declaredCallSuperStrategy
+         }
 
          if (canOverrideActivityMethod) {
             overrideReturnType = callbackMethod.parameters.first().asType().accept(object : TypeKindVisitor6<TypeMirror, Void>() {
@@ -82,7 +100,9 @@ class PluginModel(
             overrideReturnType = null
          }
 
-         priority = callbackMethod.getAnnotation(Callback::class.java).priority
+         val specificPriority = callbackMethod.getAnnotation(Callback::class.java).priority
+         val basePriority = plugin.element.getAnnotation(Plugin::class.java).priority
+         priority = if (specificPriority != Integer.MIN_VALUE) specificPriority else basePriority
       }
 
       fun matchesActivityMethod(activityMethod: ExecutableElement): Boolean {

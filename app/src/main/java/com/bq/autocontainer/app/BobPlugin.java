@@ -11,19 +11,18 @@ import javax.inject.Inject;
 
 import static com.bq.autocontainer.Callback.CallSuper.AFTER;
 
-@Plugin
+@Plugin(priority = 0)
 public class BobPlugin {
 
+    @Inject AlicePlugin.AliceSuperObject aliceSuperObject;
 
-    @Inject
-    AlicePlugin.MySuperObject mySuperObject;
-
-    @Callback(priority = 0)
+    @Callback
     public void onResume() {
     }
 
     @Callback
     public void onBackPressed(CallbackMethod<Void> m) {
+        if (m.overridden()) return;
         m.call();
     }
 

@@ -7,4 +7,14 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface Plugin {
+
+    /**
+     * The order to execute callbacks. If two plugins have the same priority
+     * alphabetical order by class name is used. Same name and priority will lead to undefined behaviour.
+     * <p>
+     * Priority is ascending, lower means earlier call.
+     * <p>
+     * Defaults to 100.
+     */
+    int priority() default 100;
 }

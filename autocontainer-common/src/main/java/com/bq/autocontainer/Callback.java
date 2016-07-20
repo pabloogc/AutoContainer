@@ -17,14 +17,11 @@ public @interface Callback {
     CallSuper callSuper() default CallSuper.UNSPECIFIED;
 
     /**
-     * The order to execute callbacks. If two classes have the same priority
-     * alphabetical order by class name is used. Same name and priority will lead to undefined behaviour.
-     * <p>
-     * Priority is ascending, lower means earlier call.
-     * <p>
-     * Defaults to 100.
+     * Callback method specific priority. If no value is specified the plugin priority is used.
+     *
+     * @see Plugin#priority()
      */
-    int priority() default 100;
+    int priority() default Integer.MIN_VALUE;
 
     enum CallSuper {
         BEFORE, AFTER, UNSPECIFIED

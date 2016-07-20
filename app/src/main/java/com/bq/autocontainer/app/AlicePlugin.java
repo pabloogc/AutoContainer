@@ -11,10 +11,11 @@ import javax.inject.Inject;
 
 @Plugin
 public class AlicePlugin {
-    @Inject
-    BobPlugin bobPlugin;
 
-    private final MySuperObject superObject = new MySuperObject();
+    @Inject BobPlugin bobPlugin;
+    @Inject EpubViewerActivity activity;
+
+    private final AliceSuperObject superObject = new AliceSuperObject();
 
     @Callback
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -27,14 +28,16 @@ public class AlicePlugin {
     }
 
 
-    public static final class MySuperObject {
-        int x = 33;
+    public static final class AliceSuperObject {
+        void sayHello() {
+            System.out.println("Hello");
+        }
     }
 
     @dagger.Module
-    public static final class Module {
+    static final class Module {
         @Provides
-        public static MySuperObject provideMySuperObject(AlicePlugin alicePlugin) {
+        static AliceSuperObject provideMySuperObject(AlicePlugin alicePlugin) {
             return alicePlugin.superObject;
         }
     }

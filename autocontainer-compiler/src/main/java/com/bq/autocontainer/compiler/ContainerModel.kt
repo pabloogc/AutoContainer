@@ -13,6 +13,7 @@ import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 
 class ContainerModel(
+      val componentModel: ComponentModel,
       originalClassName: ClassName,
       val element: TypeElement,
       val plugins: List<PluginModel>) {
@@ -72,17 +73,23 @@ class ContainerModel(
             .superclass(ClassName.get(baseClass))
             .addModifiers(Modifier.PUBLIC)
 
-      //Add a injection point for every plugin
+      val initMethod = MethodSpec.methodBuilder("init")
+            .addParameter(componentModel.componentClassName, "component")
+            .addStatement("component.inject(this)")
+
+      //Add a injection field for every plugin
       plugins.forEach {
          componentTypeSpec.addField(FieldSpec.builder(it.element.asType().toTypeName(), it.fieldName)
                .addAnnotation(Inject::class.java)
                .addAnnotations(it.declaringMethod.copyAnnotations().asIterable())
                .build())
+         initMethod.addStatement("component.inject(this.${it.fieldName})")
       }
+
+      componentTypeSpec.addMethod(initMethod.build())
 
       //Add a CallbackMethod for every callback
       callbackMap.forEach { methodToOverride, pluginCallbacksToInvoke ->
-
 
          val callbackClassRequired = pluginCallbacksToInvoke.any { it.canOverrideActivityMethod }
          val callbacksBeforeSuper = pluginCallbacksToInvoke

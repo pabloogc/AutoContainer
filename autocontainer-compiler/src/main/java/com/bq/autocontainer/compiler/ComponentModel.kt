@@ -21,16 +21,15 @@ class ComponentModel(val element: TypeElement) {
    val plugins: List<PluginModel>
    val scopeClass: TypeMirror
    val originalClassName: ClassName
-   val generatedClassName: ClassName
+   val componentClassName: ClassName
    val moduleClassName: ClassName
-
 
    val containerModel: ContainerModel
 
    init {
       originalClassName = ClassName.get(element)
 
-      generatedClassName = ClassName.get(
+      componentClassName = ClassName.get(
             originalClassName.packageName(),
             originalClassName.simpleName() + "Component")
 
@@ -52,7 +51,7 @@ class ComponentModel(val element: TypeElement) {
                      it.simpleName.toString())
             }
 
-      containerModel = ContainerModel(originalClassName, element, plugins)
+      containerModel = ContainerModel(this, originalClassName, element, plugins)
    }
 
    fun generateClass() {
@@ -64,7 +63,7 @@ class ComponentModel(val element: TypeElement) {
    }
 
    private fun generateComponentClass() {
-      val componentTypeSpec = TypeSpec.interfaceBuilder(generatedClassName)
+      val componentTypeSpec = TypeSpec.interfaceBuilder(componentClassName)
             .addModifiers(Modifier.PUBLIC)
 
       //Replace @AutoContainer Annotation with @Component, everything else is the same
@@ -109,7 +108,21 @@ class ComponentModel(val element: TypeElement) {
                )
             }
 
-      //Generate injection points for unique types (plugins and activity)
+      //Generate container method to allow plugins to inject it
+      componentTypeSpec.addMethod(MethodSpec.methodBuilder("containerBase")
+            .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+            .addAnnotation(scopeClass.toClassName())
+            .returns(containerModel.baseClass.toTypeName())
+            .build())
+
+      //Same for the specific implementation
+      componentTypeSpec.addMethod(MethodSpec.methodBuilder("containerImplementation")
+            .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
+            .addAnnotation(scopeClass.toClassName())
+            .returns(containerModel.containerClassName)
+            .build())
+
+      //Generate injection points for unique types (plugins and container)
       plugins.map { it.className }
             .distinct()
             .plus(containerModel.containerClassName)
@@ -122,7 +135,7 @@ class ComponentModel(val element: TypeElement) {
                )
             }
 
-      val file = JavaFile.builder(generatedClassName.packageName(), componentTypeSpec.build()).build()
+      val file = JavaFile.builder(componentClassName.packageName(), componentTypeSpec.build()).build()
       file.writeTo(env.filer)
    }
 
@@ -148,17 +161,28 @@ class ComponentModel(val element: TypeElement) {
       //Add provision methods for Activity
       componentTypeSpec
             .addField(containerModel.containerClassName, "container",
-                  Modifier.PRIVATE,
-                  Modifier.FINAL)
+                  Modifier.PRIVATE, Modifier.FINAL)
             .addMethod(MethodSpec.constructorBuilder()
                   .addModifiers(Modifier.PUBLIC)
                   .addParameter(containerModel.containerClassName, "container")
                   .addStatement("this.container = container")
                   .build())
+            //Add base class type
             .addMethod(
-                  MethodSpec.methodBuilder("provideContainer")
+                  MethodSpec.methodBuilder("provideContainerBase")
                         .addModifiers(Modifier.PUBLIC)
                         .addAnnotation(Provides::class.java)
+                        .addAnnotation(scopeClass.toClassName())
+                        .addStatement("return this.container")
+                        .returns(containerModel.baseClass.toTypeName())
+                        .build()
+            )
+            //Add specific type
+            .addMethod(
+                  MethodSpec.methodBuilder("provideContainerImplementation")
+                        .addModifiers(Modifier.PUBLIC)
+                        .addAnnotation(Provides::class.java)
+                        .addAnnotation(scopeClass.toClassName())
                         .addStatement("return this.container")
                         .returns(containerModel.containerClassName)
                         .build()

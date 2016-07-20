@@ -16,7 +16,7 @@ import javax.lang.model.type.TypeMirror
 
 class ComponentModel(val element: TypeElement) {
 
-   var generated = false;
+   var generated = false
 
    val plugins: List<PluginModel>
    val scopeClass: TypeMirror
@@ -57,7 +57,7 @@ class ComponentModel(val element: TypeElement) {
 
    fun generateClass() {
       if (generated) return
-      generated = true;
+      generated = true
       generateComponentClass()
       generateModuleClass()
       generateActivityClass()
@@ -68,10 +68,10 @@ class ComponentModel(val element: TypeElement) {
             .addModifiers(Modifier.PUBLIC)
 
       //Replace @AutoContainer Annotation with @Component, everything else is the same
-      val componentAnnotations = element.copyAnnotations();
+      val componentAnnotations = element.copyAnnotations()
       componentAnnotations.forEachIndexed { i, annotationSpec ->
          if (annotationSpec.type.equals(ClassName.get(AutoContainer::class.java))) {
-            val builder = AnnotationSpec.builder(Component::class.java);
+            val builder = AnnotationSpec.builder(Component::class.java)
             annotationSpec.members
                   //Only keep @Component values
                   .filter { it.key == "modules" || it.key == "dependencies" }
@@ -83,7 +83,7 @@ class ComponentModel(val element: TypeElement) {
 
             //Add the generated module
             builder.addMember("modules", "\$T.class", moduleClassName)
-            componentAnnotations[i] = builder.build();
+            componentAnnotations[i] = builder.build()
          }
       }
 
@@ -147,19 +147,19 @@ class ComponentModel(val element: TypeElement) {
 
       //Add provision methods for Activity
       componentTypeSpec
-            .addField(containerModel.containerClassName, "activity",
+            .addField(containerModel.containerClassName, "container",
                   Modifier.PRIVATE,
                   Modifier.FINAL)
             .addMethod(MethodSpec.constructorBuilder()
                   .addModifiers(Modifier.PUBLIC)
-                  .addParameter(containerModel.containerClassName, "activity")
-                  .addStatement("this.activity = activity")
+                  .addParameter(containerModel.containerClassName, "container")
+                  .addStatement("this.container = container")
                   .build())
             .addMethod(
-                  MethodSpec.methodBuilder("provideActivity")
+                  MethodSpec.methodBuilder("provideContainer")
                         .addModifiers(Modifier.PUBLIC)
                         .addAnnotation(Provides::class.java)
-                        .addStatement("return this.activity")
+                        .addStatement("return this.container")
                         .returns(containerModel.containerClassName)
                         .build()
             )

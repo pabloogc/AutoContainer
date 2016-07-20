@@ -54,6 +54,17 @@ class ContainerModel(
             }
          }
       }
+
+      callbackMap.forEach { executableElement, callbacks ->
+         callbacks.sortWith(Comparator<PluginModel.CallbackMethod> { o1, o2 ->
+            var out = o1.priority - o2.priority
+            if (out == 0) { //Same priority
+               out = o1.plugin.className.toString().compareTo(o2.plugin.className.toString())
+            }
+            out
+
+         })
+      }
    }
 
    fun generateClass() {
@@ -136,29 +147,6 @@ class ContainerModel(
                      }
                   }
 
-//                  if (callbackClassRequired) {
-//                     if (auxVarRequired) {
-//                        addStatement("if(!this.$callbackMethodFieldName.overridden()) super.${methodToOverride.toInvocationString()}")
-//                     } else {
-//                        addStatement("if(this.$callbackMethodFieldName.overridden()) $auxVarName = $callbackMethodFieldName.getOverriddenValue()")
-//                        addStatement("else $auxVarName = super.${methodToOverride.toInvocationString()}")
-//                     }
-//
-//                  } else {
-//                     //No callback class
-//                     if (methodToOverride.isVoid()) {
-//                        addStatement("super.${methodToOverride.toInvocationString()}")
-//                     } else {
-//                        if (callbacksAfterSuper.isEmpty()) {
-//                           //Nothing after super, just return
-//                           addStatement("return super.${methodToOverride.toInvocationString()}")
-//                        } else {
-//                           //Store the aux value
-//                           addStatement("$auxVarName = super.${methodToOverride.toInvocationString()}")
-//                        }
-//                     }
-//                  }
-
                   //Add all method that go after super
                   callbacksAfterSuper.forEach { addPluginCall(it) }
 
@@ -239,4 +227,3 @@ class ContainerModel(
       return callbackMethodField
    }
 }
-

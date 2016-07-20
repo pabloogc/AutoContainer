@@ -44,6 +44,7 @@ class PluginModel(
       val callSuper: CallSuperType
       val overrideReturnType: TypeMirror?
       val plugin = this@PluginModel
+      val priority: Int
 
       init {
          canOverrideActivityMethod = callbackMethod.parameters.firstOrNull()
@@ -51,7 +52,6 @@ class PluginModel(
                ?.qualifiedName?.toString()
                ?.equals(CALLBACK_METHOD_CLASS_NAME)
                ?: false
-
 
          //If not specified call and the method won't override the container method (lifecycle methods)
          //call it after super, otherwise the callback goes first
@@ -81,6 +81,8 @@ class PluginModel(
          } else {
             overrideReturnType = null
          }
+
+         priority = callbackMethod.getAnnotation(Callback::class.java).priority
       }
 
       fun matchesActivityMethod(activityMethod: ExecutableElement): Boolean {

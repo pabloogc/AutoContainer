@@ -18,7 +18,7 @@ public class BobPlugin {
     @Inject
     AlicePlugin.MySuperObject mySuperObject;
 
-    @Callback
+    @Callback(priority = 0)
     public void onResume() {
     }
 

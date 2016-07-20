@@ -32,8 +32,8 @@ android {
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile project(':autoactivity-common')
-    apt project(':autoactivity-compiler')
+    compile project(':autocontainer-common')
+    apt project(':autocontainer-compiler')
     apt 'com.google.dagger:dagger-compiler:2.5'
 
 

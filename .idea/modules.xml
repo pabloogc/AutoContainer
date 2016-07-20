@@ -2,10 +2,10 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/AutoActivity.iml" filepath="$PROJECT_DIR$/AutoActivity.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/autoactivity-common/autoactivity-common.iml" filepath="$PROJECT_DIR$/autoactivity-common/autoactivity-common.iml" />
-      <module fileurl="file://$PROJECT_DIR$/autoactivity-compiler/autoactivity-compiler.iml" filepath="$PROJECT_DIR$/autoactivity-compiler/autoactivity-compiler.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/AutoContainer.iml" filepath="$PROJECT_DIR$/.idea/modules/AutoContainer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/autocontainer-common/autocontainer-common.iml" filepath="$PROJECT_DIR$/.idea/modules/autocontainer-common/autocontainer-common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/autocontainer-compiler/autocontainer-compiler.iml" filepath="$PROJECT_DIR$/.idea/modules/autocontainer-compiler/autocontainer-compiler.iml" />
     </modules>
   </component>
 </project>

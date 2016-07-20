@@ -1,1 +1,1 @@
-include ':app', ':autoactivity-compiler', ':autoactivity-common'
+include ':app', ':autocontainer-common', ':autocontainer-compiler'

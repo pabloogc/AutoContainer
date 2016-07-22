@@ -7,7 +7,6 @@ import com.squareup.javapoet.*
 import dagger.Component
 import dagger.Module
 import dagger.Provides
-import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
@@ -42,11 +41,12 @@ class ComponentModel(val element: TypeElement) {
       scopeClass = annotation.typeMirror(AutoContainer::scope)
 
       plugins = element.enclosedElements
-            .filter { it.kind == ElementKind.METHOD }
+            .filter { it.isMethod }
             .map { it as ExecutableElement }
-            .filter { it.returnType.asElement().hasAnnotation(Plugin::class.java) }
+            .filter { it.hasAnnotation(Plugin::class.java) }
             .map {
                PluginModel(
+                     it.getAnnotation(Plugin::class.java),
                      it,
                      it.returnType.asElement().asTypeElement(),
                      it.simpleName.toString())
@@ -68,7 +68,7 @@ class ComponentModel(val element: TypeElement) {
             .addModifiers(Modifier.PUBLIC)
 
       //Replace @AutoContainer Annotation with @Component, everything else is the same
-      val componentAnnotations = element.copyAnnotations()
+      val componentAnnotations = element.copyAnnotations().toMutableList()
       componentAnnotations.forEachIndexed { i, annotationSpec ->
          if (annotationSpec.type.equals(ClassName.get(AutoContainer::class.java))) {
             val builder = AnnotationSpec.builder(Component::class.java)
@@ -87,9 +87,9 @@ class ComponentModel(val element: TypeElement) {
          }
       }
 
-      //Add original annotations
+      //Add original annotations except @Plugin
       componentTypeSpec
-            .addAnnotations(componentAnnotations.asIterable())
+            .addAnnotations(componentAnnotations)
             .addAnnotation(scopeClass.toClassName())
 
       //Add original base interfaces
@@ -103,12 +103,12 @@ class ComponentModel(val element: TypeElement) {
 
       //Copy all the abstract methods
       element.asTypeElement().enclosedElements
-            .filter { it.kind == ElementKind.METHOD }
+            .filter { it.isMethod }
             .map { it as ExecutableElement }
             .filter { it.isAbstract }
             .forEach { method ->
                componentTypeSpec.addMethod(MethodSpec.methodBuilder(method.simpleName.toString())
-                     .addAnnotations(method.copyAnnotations().asIterable())
+                     .addAnnotations(method.copyAnnotations(exclude = Plugin::class.java))
                      .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
                      .returns(ClassName.get(method.returnType))
                      .apply {
@@ -161,7 +161,7 @@ class ComponentModel(val element: TypeElement) {
                MethodSpec.methodBuilder("provide${it.declaringMethod.simpleName.toString().capitalize()}")
                      .addModifiers(Modifier.PUBLIC)
                      .addAnnotation(Provides::class.java)
-                     .addAnnotations(it.declaringMethod.copyAnnotations().asIterable())
+                     .addAnnotations(it.declaringMethod.copyAnnotations(exclude = Plugin::class.java))
                      .addAnnotation(scopeClass.toClassName())
                      .returns(it.className)
                      .addStatement("return new \$T()", it.className)

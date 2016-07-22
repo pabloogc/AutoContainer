@@ -63,12 +63,13 @@ fun Element.findMethodByName(name: String): ExecutableElement = findMethodByName
 fun Element.findMethodByNameOrNull(name: String): ExecutableElement? = findMethodOrNull { it.simpleName.toString() == name }
 fun Element.findMethod(p: (ExecutableElement) -> Boolean): ExecutableElement = findMethodOrNull(p)!!
 fun Element.findMethodOrNull(p: (ExecutableElement) -> Boolean): ExecutableElement? {
-   return this.enclosedElements.filter { it.kind == ElementKind.METHOD }
+   return this.enclosedElements.filter { it.isMethod }
          .map { it as ExecutableElement }
          .firstOrNull(p)
 }
 
-val Element.isMethod: Boolean get() = this.kind == javax.lang.model.element.ElementKind.METHOD
+val Element.isMethod: Boolean get() = this.kind == ElementKind.METHOD
+val Element.isInterface: Boolean get() = this.kind == ElementKind.INTERFACE
 val Element.isAbstract: Boolean get() = this.modifiers.contains(Modifier.ABSTRACT)
 val ExecutableElement.isVoid: Boolean get() = this.returnType.kind == TypeKind.VOID
 
@@ -151,9 +152,9 @@ fun <T : Annotation> Element.hasAnnotation(type: Class<T>): Boolean = this.getAn
 
 fun TypeMirror.isSameType(other: TypeMirror) = env.typeUtils.isSameType(this, other)
 
-//###################
+//####################
 // JavaPoet utilities
-//###################
+//####################
 
 fun logError(message: String, element: Element? = null) {
    logMessage(Diagnostic.Kind.ERROR, message, element)
@@ -174,10 +175,13 @@ fun logMessage(kind: Diagnostic.Kind, message: String, element: Element? = null)
 fun MethodSpec.Builder.breakLine() = addCode("\n")
 fun MethodSpec.Builder.addComment(format: String, vararg args: Any?) = addCode("//$format\n", args)
 
-fun Element.copyAnnotations(): Array<AnnotationSpec> {
+fun Element.copyAnnotations(vararg exclude: Class<*>): List<AnnotationSpec> {
+   val excludedTypeNames = exclude.map { ClassName.get(it) }
    return annotationMirrors.map {
       AnnotationSpec.get(it)
-   }.toTypedArray()
+   }.filterNot {
+      it.type in excludedTypeNames
+   }
 }
 
 /**

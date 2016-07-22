@@ -2,6 +2,7 @@ package com.bq.autocontainer.compiler;
 
 import com.bq.autocontainer.AutoContainer;
 import com.bq.autocontainer.Callback;
+import com.bq.autocontainer.Plugin;
 import com.google.auto.service.AutoService;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -13,7 +14,9 @@ import javax.lang.model.element.TypeElement;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-
+/**
+ * Need this to be a java class, otherwise Javac won't detect it using @AutoService.
+ */
 @AutoService(Processor.class)
 public class AutoContainerService extends AbstractProcessor {
     private final AutoContainerProcessor delegate = AutoContainerProcessor.INSTANCE;
@@ -29,7 +32,7 @@ public class AutoContainerService extends AbstractProcessor {
         final LinkedHashSet<String> set = new LinkedHashSet<>();
         set.add(AutoContainer.class.getCanonicalName());
         set.add(Callback.class.getCanonicalName());
-        set.add(com.bq.autocontainer.Plugin.class.getCanonicalName());
+        set.add(Plugin.class.getCanonicalName());
         return set;
     }
 

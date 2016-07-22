@@ -13,7 +13,7 @@ import javax.inject.Inject;
 public class AlicePlugin {
 
     @Inject BobPlugin bobPlugin;
-    @Inject EpubViewerActivity activity;
+    @Inject ViewerActivity activity;
 
     private final AliceSuperObject superObject = new AliceSuperObject();
 

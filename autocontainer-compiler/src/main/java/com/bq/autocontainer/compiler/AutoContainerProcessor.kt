@@ -6,7 +6,6 @@ import java.io.StringWriter
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
-import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 import javax.lang.model.util.ElementFilter
 
@@ -20,7 +19,7 @@ object AutoContainerProcessor : AbstractProcessor() {
       try {
          roundEnv.getElementsAnnotatedWith(AutoContainer::class.java)
                .let { ElementFilter.typesIn(it) } //Poor man's filter
-               .filter { it.kind == ElementKind.INTERFACE } //Only interfaces
+               .filter { it.isInterface } //Only interfaces
                .map { ComponentModel(it) }
                .forEach { it.generateClass() }
       } catch(ex: Exception) {
@@ -28,6 +27,7 @@ object AutoContainerProcessor : AbstractProcessor() {
          ex.printStackTrace(PrintWriter(sw))
          logError(sw.toString()
                .lines()
+               //Skip all the irrelevant gradle trace.
                .takeWhile { !it.contains("JavacProcessingEnvironment.callProcessor") }
                .joinToString("\n"))
       }

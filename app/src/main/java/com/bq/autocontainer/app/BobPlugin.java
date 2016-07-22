@@ -11,7 +11,7 @@ import javax.inject.Inject;
 
 import static com.bq.autocontainer.Callback.CallSuper.AFTER;
 
-@Plugin(priority = 0)
+@Plugin
 public class BobPlugin {
 
     @Inject AlicePlugin.AliceSuperObject aliceSuperObject;

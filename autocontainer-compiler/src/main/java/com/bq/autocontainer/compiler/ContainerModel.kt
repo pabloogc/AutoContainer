@@ -1,11 +1,11 @@
 package com.bq.autocontainer.compiler
 
 import com.bq.autocontainer.AutoContainer
+import com.bq.autocontainer.Plugin
 import com.bq.autocontainer.compiler.ProcessorUtils.env
 import com.squareup.javapoet.*
 import java.util.*
 import javax.inject.Inject
-import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
@@ -16,21 +16,19 @@ class ContainerModel(
       val componentModel: ComponentModel,
       originalClassName: ClassName,
       val element: TypeElement,
-      val plugins: List<PluginModel>) {
+      containerPlugins: List<PluginModel>) {
 
+   val plugins: List<PluginModel>
    val baseClass: TypeMirror
    val containerClassName: ClassName
    val baseClassElement: TypeElement
-   val callbackMap: HashMap<ExecutableElement, MutableList<PluginModel.CallbackMethod>>
+   val callbackMap: HashMap<ExecutableElement, MutableList<CallbackMethodModel>>
    val containerMethods: List<ExecutableElement>
 
    init {
-
-
       val annotation = element.getAnnotation(AutoContainer::class.java)
-      val className =
-            if (annotation.className.isEmpty()) originalClassName.simpleName() + "Container"
-            else annotation.className
+      val className = if (annotation.className.isEmpty()) originalClassName.simpleName() + "Container"
+      else annotation.className
 
       containerClassName = ClassName.get(
             originalClassName.packageName(),
@@ -42,9 +40,11 @@ class ContainerModel(
 
       callbackMap = HashMap()
       containerMethods = baseClassElement.allEnclosedElements
-            .filter { it.kind == ElementKind.METHOD }
+            .filter { it.isMethod }
             .map { it as ExecutableElement }
 
+      //Sort them by priority
+      plugins = containerPlugins.sortedBy { it.priority }
       plugins.forEach { p ->
          p.callbackMethods.forEach { callback ->
             val match = containerMethods.firstOrNull { callback.matchesContainerMethod(it) }
@@ -57,7 +57,7 @@ class ContainerModel(
       }
 
       callbackMap.forEach { executableElement, callbacks ->
-         callbacks.sortWith(Comparator<PluginModel.CallbackMethod> { o1, o2 ->
+         callbacks.sortWith(Comparator<CallbackMethodModel> { o1, o2 ->
             var out = o1.priority - o2.priority
             if (out == 0) { //Same priority
                out = o1.plugin.className.toString().compareTo(o2.plugin.className.toString())
@@ -77,13 +77,15 @@ class ContainerModel(
             .addParameter(componentModel.componentClassName, "component")
             .addStatement("component.inject(this)")
 
-      //Add a injection field for every plugin
+      //Add a injection field for every plugin, respecting all annotations except Plugin
       plugins.forEach {
-         componentTypeSpec.addField(FieldSpec.builder(it.element.asType().toTypeName(), it.fieldName)
-               .addAnnotation(Inject::class.java)
-               .addAnnotations(it.declaringMethod.copyAnnotations().asIterable())
-               .build())
-         initMethod.addStatement("component.inject(this.${it.fieldName})")
+         componentTypeSpec.addField(
+               FieldSpec.builder(it.element.asType().toTypeName(), it.fieldNameInContainer)
+                     .addAnnotation(Inject::class.java)
+                     .addAnnotations(it.declaringMethod.copyAnnotations().asIterable()
+                           .filterNot { it.type.equals(ClassName.get(Plugin::class.java)) })
+                     .build())
+         initMethod.addStatement("component.inject(this.${it.fieldNameInContainer})")
       }
 
       componentTypeSpec.addMethod(initMethod.build())
@@ -93,9 +95,9 @@ class ContainerModel(
 
          val callbackClassRequired = pluginCallbacksToInvoke.any { it.canOverrideContainerMethod }
          val callbacksBeforeSuper = pluginCallbacksToInvoke
-               .filter { it.callSuper == PluginModel.CallSuperType.AFTER }
+               .filter { it.callSuper == CallSuperType.AFTER }
          val callbacksAfterSuper = pluginCallbacksToInvoke
-               .filter { it.callSuper == PluginModel.CallSuperType.BEFORE }
+               .filter { it.callSuper == CallSuperType.BEFORE }
 
          val auxVarName = "result"
          val auxVarRequired = !methodToOverride.isVoid && (callbacksAfterSuper.isNotEmpty() || callbackClassRequired)
@@ -113,18 +115,18 @@ class ContainerModel(
          componentTypeSpec.addMethod(
                MethodSpec.overriding(methodToOverride).apply {
 
-                  fun addPluginCall(cb: PluginModel.CallbackMethod) {
+                  fun addPluginCall(cb: CallbackMethodModel) {
                      if (cb.canOverrideContainerMethod) {
                         val params = (listOf(callbackMethodFieldName)
                               .plus(methodToOverride.parameters.map { it.simpleName }))
                               .joinToString(", ")
 
                         //Borrow and call, they go to the same line to avoid noise in generated code
-                        addCode("${methodToOverride.simpleName}.borrow(${cb.plugin.fieldName}); ")
-                        addCode("this.${cb.plugin.fieldName}.${methodToOverride.simpleName}($params);\n")
+                        addCode("${methodToOverride.simpleName}.borrow(${cb.plugin.fieldNameInContainer}); ")
+                        addCode("this.${cb.plugin.fieldNameInContainer}.${methodToOverride.simpleName}($params);\n")
 
                      } else {
-                        addStatement("this.${cb.plugin.fieldName}.${methodToOverride.toInvocationString()}")
+                        addStatement("this.${cb.plugin.fieldNameInContainer}.${methodToOverride.toInvocationString()}")
                      }
                   }
 
@@ -181,7 +183,8 @@ class ContainerModel(
       val isVoidMethod = methodToOverride.returnType.kind == TypeKind.VOID
       val returnTypeName = TypeName.get(methodToOverride.returnType)
 
-      val containerMethodElement = elementForName(CALLBACK_METHOD_CLASS_NAME).asType().asElement().asTypeElement()
+      val containerMethodElement = elementForName(PluginModel.CALLBACK_METHOD_CLASS_NAME)
+            .asType().asElement().asTypeElement()
       val callbackRawClassName = ClassName.get(containerMethodElement)
       val callbackTypeName = ParameterizedTypeName.get(callbackRawClassName, returnTypeName.box())
 

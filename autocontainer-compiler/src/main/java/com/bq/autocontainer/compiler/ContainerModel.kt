@@ -22,7 +22,7 @@ class ContainerModel(
    val containerClassName: ClassName
    val baseClassElement: TypeElement
    val callbackMap: HashMap<ExecutableElement, MutableList<PluginModel.CallbackMethod>>
-   val activityMethods: List<ExecutableElement>
+   val containerMethods: List<ExecutableElement>
 
    init {
 
@@ -41,13 +41,13 @@ class ContainerModel(
       baseClassElement = baseClass.asElement() as TypeElement
 
       callbackMap = HashMap()
-      activityMethods = baseClassElement.enclosedAndInheritedElements()
+      containerMethods = baseClassElement.allEnclosedElements
             .filter { it.kind == ElementKind.METHOD }
             .map { it as ExecutableElement }
 
       plugins.forEach { p ->
          p.callbackMethods.forEach { callback ->
-            val match = activityMethods.firstOrNull { callback.matchesActivityMethod(it) }
+            val match = containerMethods.firstOrNull { callback.matchesContainerMethod(it) }
             if (match == null) {
                logError("Not matching method found for $callback", callback.callbackMethod)
             } else {
@@ -91,14 +91,14 @@ class ContainerModel(
       //Add a CallbackMethod for every callback
       callbackMap.forEach { methodToOverride, pluginCallbacksToInvoke ->
 
-         val callbackClassRequired = pluginCallbacksToInvoke.any { it.canOverrideActivityMethod }
+         val callbackClassRequired = pluginCallbacksToInvoke.any { it.canOverrideContainerMethod }
          val callbacksBeforeSuper = pluginCallbacksToInvoke
                .filter { it.callSuper == PluginModel.CallSuperType.AFTER }
          val callbacksAfterSuper = pluginCallbacksToInvoke
                .filter { it.callSuper == PluginModel.CallSuperType.BEFORE }
 
          val auxVarName = "result"
-         val auxVarRequired = !methodToOverride.isVoid() && (callbacksAfterSuper.isNotEmpty() || callbackClassRequired)
+         val auxVarRequired = !methodToOverride.isVoid && (callbacksAfterSuper.isNotEmpty() || callbackClassRequired)
          val auxVarType = TypeName.get(methodToOverride.returnType)
 
          val callbackMethodFieldName =
@@ -114,7 +114,7 @@ class ContainerModel(
                MethodSpec.overriding(methodToOverride).apply {
 
                   fun addPluginCall(cb: PluginModel.CallbackMethod) {
-                     if (cb.canOverrideActivityMethod) {
+                     if (cb.canOverrideContainerMethod) {
                         val params = (listOf(callbackMethodFieldName)
                               .plus(methodToOverride.parameters.map { it.simpleName }))
                               .joinToString(", ")
@@ -181,8 +181,8 @@ class ContainerModel(
       val isVoidMethod = methodToOverride.returnType.kind == TypeKind.VOID
       val returnTypeName = TypeName.get(methodToOverride.returnType)
 
-      val activityMethodElement = elementForName(CALLBACK_METHOD_CLASS_NAME).asType().asElement().asTypeElement()
-      val callbackRawClassName = ClassName.get(activityMethodElement)
+      val containerMethodElement = elementForName(CALLBACK_METHOD_CLASS_NAME).asType().asElement().asTypeElement()
+      val callbackRawClassName = ClassName.get(containerMethodElement)
       val callbackTypeName = ParameterizedTypeName.get(callbackRawClassName, returnTypeName.box())
 
       val callContainerMethod = MethodSpec.methodBuilder("call")

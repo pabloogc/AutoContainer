@@ -29,7 +29,7 @@ class PluginModel(
       className = ClassName.get(element)
       //Since methods must have unique names in the interfaces this is safe
 
-      if (element.modifiers.contains(Modifier.ABSTRACT)) {
+      if (element.isAbstract) {
          logError("Plugin can't be abstract", element)
       }
 
@@ -40,8 +40,9 @@ class PluginModel(
          logError("Plugin must have visible empty constructor.")
       }
 
-      callbackMethods = element.enclosedAndInheritedElements()
-            .filter { it.kind == ElementKind.METHOD }
+
+      callbackMethods = element.allEnclosedElements
+            .filter { it.isMethod }
             .filter { it.hasAnnotation(Callback::class.java) }
             .map { CallbackMethod(it as ExecutableElement) }
    }
@@ -52,14 +53,14 @@ class PluginModel(
 
    inner class CallbackMethod(val callbackMethod: ExecutableElement) {
 
-      val canOverrideActivityMethod: Boolean
+      val canOverrideContainerMethod: Boolean
       val callSuper: CallSuperType
       val overrideReturnType: TypeMirror?
       val plugin = this@PluginModel
       val priority: Int
 
       init {
-         canOverrideActivityMethod = callbackMethod.parameters.firstOrNull()
+         canOverrideContainerMethod = callbackMethod.parameters.firstOrNull()
                ?.asType()?.asTypeElementOrNull()
                ?.qualifiedName?.toString()
                ?.equals(CALLBACK_METHOD_CLASS_NAME)
@@ -81,7 +82,7 @@ class PluginModel(
 
          val callSuperUnspecified = declaredCallSuperStrategy == CallSuperType.UNSPECIFIED
          callSuper = if (callSuperUnspecified) {
-            if (canOverrideActivityMethod) {
+            if (canOverrideContainerMethod) {
                CallSuperType.AFTER
             } else {
                CallSuperType.BEFORE
@@ -90,7 +91,7 @@ class PluginModel(
             declaredCallSuperStrategy
          }
 
-         if (canOverrideActivityMethod) {
+         if (canOverrideContainerMethod) {
             overrideReturnType = callbackMethod.parameters.first().asType().accept(object : TypeKindVisitor6<TypeMirror, Void>() {
                override fun visitDeclared(t: DeclaredType, p: Void?): TypeMirror? {
                   return t.typeArguments[0]
@@ -100,28 +101,30 @@ class PluginModel(
             overrideReturnType = null
          }
 
-         val specificPriority = callbackMethod.getAnnotation(Callback::class.java).priority
+         val callbackAnnotation = callbackMethod.getAnnotation(Callback::class.java)
+         val specificPriority = callbackAnnotation.priority
          val basePriority = plugin.element.getAnnotation(Plugin::class.java).priority
-         priority = if (specificPriority != Integer.MIN_VALUE) specificPriority else basePriority
+         priority = callbackAnnotation.relativePriority +
+               if (specificPriority != Integer.MIN_VALUE) specificPriority else basePriority
       }
 
-      fun matchesActivityMethod(activityMethod: ExecutableElement): Boolean {
+      fun matchesContainerMethod(containerMethod: ExecutableElement): Boolean {
 
          val parametersToMatch = callbackMethod.parameters
-               .drop(if (canOverrideActivityMethod) 1 else 0) //Drop first if overriding
+               .drop(if (canOverrideContainerMethod) 1 else 0) //Drop first if overriding
 
-         val nameMatch = callbackMethod.simpleName == activityMethod.simpleName
+         val nameMatch = callbackMethod.simpleName == containerMethod.simpleName
 
          val parametersTypesMatch = parametersToMatch
-               .zip(activityMethod.parameters)
+               .zip(containerMethod.parameters)
                .map { it.first.asType().to(it.second.asType()) }
                .all { it.first.isSameType(it.second) }
 
-         val parametersSizeMatch = parametersToMatch.size == activityMethod.parameters.size
+         val parametersSizeMatch = parametersToMatch.size == containerMethod.parameters.size
 
-         val returnTypeMatch = if (canOverrideActivityMethod) {
-            overrideReturnType!!.implements(activityMethod.returnType)
-                  || activityMethod.returnType.kind == TypeKind.VOID && overrideReturnType.implements(elementForName("java.lang.Void").asType())
+         val returnTypeMatch = if (canOverrideContainerMethod) {
+            overrideReturnType!!.implements(containerMethod.returnType)
+                  || containerMethod.returnType.kind == TypeKind.VOID && overrideReturnType.implements(elementForName("java.lang.Void").asType())
          } else {
             // We don't care about return type in callback methods since its discarded
             // and there is no way to mutate the caller other than the arguments
@@ -132,7 +135,7 @@ class PluginModel(
       }
 
       override fun toString(): String {
-         return "CallbackMethod(callbackMethod=$callbackMethod, canOverrideActivityMethod=$canOverrideActivityMethod, callSuper=$callSuper, returnType=$overrideReturnType)"
+         return "CallbackMethod(callbackMethod=$callbackMethod, canOverrideContainerMethod=$canOverrideContainerMethod, callSuper=$callSuper, returnType=$overrideReturnType)"
       }
    }
 

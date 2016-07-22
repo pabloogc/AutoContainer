@@ -11,6 +11,7 @@ import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
+import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 
 
@@ -59,7 +60,7 @@ class ComponentModel(val element: TypeElement) {
       generated = true
       generateComponentClass()
       generateModuleClass()
-      generateActivityClass()
+      generateContainerClass()
    }
 
    private fun generateComponentClass() {
@@ -91,10 +92,20 @@ class ComponentModel(val element: TypeElement) {
             .addAnnotations(componentAnnotations.asIterable())
             .addAnnotation(scopeClass.toClassName())
 
-      //Copy all the methods
-      element.asTypeElement().enclosedAndInheritedElements()
+      //Add original base interfaces
+      componentTypeSpec.addSuperinterfaces(
+            element.asTypeElement().interfaces.map { it.toClassName() })
+
+      //Add base class, if any
+      if (element.superclass.kind != TypeKind.NONE) {
+         componentTypeSpec.superclass(element.superclass.toClassName())
+      }
+
+      //Copy all the abstract methods
+      element.asTypeElement().enclosedElements
             .filter { it.kind == ElementKind.METHOD }
             .map { it as ExecutableElement }
+            .filter { it.isAbstract }
             .forEach { method ->
                componentTypeSpec.addMethod(MethodSpec.methodBuilder(method.simpleName.toString())
                      .addAnnotations(method.copyAnnotations().asIterable())
@@ -158,7 +169,7 @@ class ComponentModel(val element: TypeElement) {
          )
       }
 
-      //Add provision methods for Activity
+      //Add provision methods for the container
       componentTypeSpec
             .addField(containerModel.containerClassName, "container",
                   Modifier.PRIVATE, Modifier.FINAL)
@@ -192,7 +203,7 @@ class ComponentModel(val element: TypeElement) {
       file.writeTo(env.filer)
    }
 
-   private fun generateActivityClass() {
+   private fun generateContainerClass() {
       containerModel.generateClass()
    }
 }

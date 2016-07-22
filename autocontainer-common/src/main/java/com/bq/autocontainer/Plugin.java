@@ -14,7 +14,7 @@ public @interface Plugin {
      * <p>
      * Priority is ascending, lower means earlier call.
      * <p>
-     * Defaults to 100.
+     * Defaults to {@link Priority#MID}.
      */
-    int priority() default 100;
+    int priority() default Priority.MID;
 }

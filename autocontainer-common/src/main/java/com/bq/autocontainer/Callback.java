@@ -23,6 +23,14 @@ public @interface Callback {
      */
     int priority() default Integer.MIN_VALUE;
 
+
+    /**
+     * Callback method relative priority. This will be added or subtracted to the specific priority.
+     *
+     * @see Plugin#priority()
+     */
+    int relativePriority() default 0;
+
     enum CallSuper {
         BEFORE, AFTER, UNSPECIFIED
     }

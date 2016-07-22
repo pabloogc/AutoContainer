@@ -14,14 +14,15 @@ import javax.tools.Diagnostic
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
-//###################
-// Conversions
-//###################
-
 
 object ProcessorUtils {
    lateinit var env: ProcessingEnvironment
 }
+
+
+//####################
+// Conversions
+//####################
 
 fun elementForName(name: String): TypeElement = env.elementUtils.getTypeElement(name)
 
@@ -44,19 +45,19 @@ fun VariableElement.asTypeElementOrNull(): TypeElement? {
    val visitor = object : ElementKindVisitor6<TypeElement, Void>() {
       override fun visitType(e: TypeElement, p: Void): TypeElement? {
          logError(e.toString())
-         return e;
+         return e
       }
 
       override fun visitTypeAsClass(e: TypeElement?, p: Void?): TypeElement? {
-         return e;
+         return e
       }
    }
    return this.accept(visitor, null)
 }
 
-//###################
+//####################
 // Type Utilities
-//###################
+//####################
 
 fun Element.findMethodByName(name: String): ExecutableElement = findMethodByNameOrNull(name)!!
 fun Element.findMethodByNameOrNull(name: String): ExecutableElement? = findMethodOrNull { it.simpleName.toString() == name }
@@ -67,7 +68,9 @@ fun Element.findMethodOrNull(p: (ExecutableElement) -> Boolean): ExecutableEleme
          .firstOrNull(p)
 }
 
-fun ExecutableElement.isVoid(): Boolean = this.returnType.kind == TypeKind.VOID
+val Element.isMethod: Boolean get() = this.kind == javax.lang.model.element.ElementKind.METHOD
+val Element.isAbstract: Boolean get() = this.modifiers.contains(Modifier.ABSTRACT)
+val ExecutableElement.isVoid: Boolean get() = this.returnType.kind == TypeKind.VOID
 
 fun TypeMirror.implements(base: KClass<*>): Boolean {
    return this.implements(base.asTypeMirror())
@@ -85,34 +88,38 @@ fun ExecutableElement.sameMethodSignature(other: ExecutableElement): Boolean {
          && env.typeUtils.isSubsignature(m2, m1)
 }
 
-fun TypeElement.enclosedAndInheritedElements(): List<Element> {
-   val out = ArrayList<Element>()
-   var current: TypeElement? = this
+/**
+ * All enclosed elements, excluding Object members (wait, notify...).
+ */
+val TypeElement.allUserEnclosedElements: List<Element>
+   get() {
+      val out = ArrayList<Element>()
+      var current: TypeElement? = this
 
-   while (current != null && current.asType().kind != TypeKind.NONE) {
-      out.addAll(current.enclosedElements)
-      val elem = env.typeUtils.asElement(current.superclass) ?: break
-      current = elem as TypeElement
+      while (current != null && current.asType().kind != TypeKind.NONE) {
+         out.addAll(current.enclosedElements)
+         val elem = env.typeUtils.asElement(current.superclass) ?: break
+         current = elem as TypeElement
+      }
+      return out.distinct()
    }
-   return out.distinct()
-}
 
-//###################
+val TypeElement.allEnclosedElements: List<Element> get() = env.elementUtils.getAllMembers(this)
+
+//####################
 // Annotation Utilities
-//###################
+//####################
 
-fun <T> T.typeMirrors(property: KProperty1<T, Array<KClass<*>>>): List<TypeMirror> {
+fun <T : Annotation> T.typeMirrors(property: KProperty1<T, Array<KClass<*>>>): List<TypeMirror> {
    try {
       property.get(this)
    } catch(ex: MirroredTypesException) {
       return ex.typeMirrors
-   } catch (ex: MirroredTypeException) {
-      return listOf(ex.typeMirror)
    }
    throw IllegalArgumentException("Property is not a Class<?>[]")
 }
 
-fun <T> T.typeMirror(property: KProperty1<T, KClass<*>>): TypeMirror {
+fun <T : Annotation> T.typeMirror(property: KProperty1<T, KClass<*>>): TypeMirror {
    try {
       property.get(this)
    } catch(ex: MirroredTypeException) {
@@ -121,18 +128,22 @@ fun <T> T.typeMirror(property: KProperty1<T, KClass<*>>): TypeMirror {
    throw IllegalArgumentException("Property is not a Class<?>")
 }
 
-fun <T : Enum<*>> mapEnumValue(element: Element, property: String, enumClass: Class<T>): T {
-   var t: T? = null
-   env.elementUtils.getAllAnnotationMirrors(element).forEach outer@ {
-      it.elementValues.entries.forEach { entry ->
-         if (entry.key.simpleName.toString() == property) {
-            val enumValue = entry.value.toString().substringAfterLast(".")
-            t = enumClass.enumConstants.firstOrNull() { it.name == enumValue }
-            return@outer
-         }
-      }
+fun Annotation.typeMirror(access: () -> Class<*>): TypeMirror {
+   try {
+      access()
+   } catch(ex: MirroredTypeException) {
+      return ex.typeMirror
    }
-   return t ?: error("Enum value not found for $property")
+   throw IllegalArgumentException("Property is not a Class<?>")
+}
+
+fun Annotation.typeMirrors(access: () -> Array<Class<*>>): List<TypeMirror> {
+   try {
+      access()
+   } catch(ex: MirroredTypesException) {
+      return ex.typeMirrors
+   }
+   throw IllegalArgumentException("Property is not a Class<?>[]")
 }
 
 
@@ -152,14 +163,13 @@ fun logWarning(message: String, element: Element? = null) {
    logMessage(Diagnostic.Kind.MANDATORY_WARNING, message, element)
 }
 
-
 fun logMessage(kind: Diagnostic.Kind, message: String, element: Element? = null) {
    env.messager.printMessage(kind, message, element)
 }
 
-//###################
+//####################
 // JavaPoet utilities
-//###################
+//####################
 
 fun MethodSpec.Builder.breakLine() = addCode("\n")
 fun MethodSpec.Builder.addComment(format: String, vararg args: Any?) = addCode("//$format\n", args)
